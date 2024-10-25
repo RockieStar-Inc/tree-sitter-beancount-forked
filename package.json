@@ -1,6 +1,6 @@
 {
-  "name": "@cat-studio/tree-sitter-beancount",
-  "version": "2.3.3.1",
+  "name": "@rockiestar/tree-sitter-beancount",
+  "version": "2.3.4",
   "description": "a tree-sitter parser for the beancount syntax",
   "main": "bindings/node",
   "types": "bindings/node/index.d.ts",
@@ -8,7 +8,8 @@
     "build": "tree-sitter generate",
     "test": "tree-sitter test",
     "install": "node-gyp-build",
-    "prebuildify": "prebuildify --napi --strip"
+    "prebuildify": "prebuildify --napi --strip",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",

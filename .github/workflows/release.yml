@@ -1,41 +1,71 @@
-name: release
+name: Release
+
 on:
   push:
-    branches: [master]
+    tags:
+      - 'v*'
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-    steps:
-      - uses: google-github-actions/release-please-action@v4
-        id: release
-        with:
-          release-type: node
-          package-name: tree-sitter-beancount
-          bump-minor-pre-major: true
-          bump-patch-for-minor-pre-major: true
-          extra-files: |
-            Cargo.toml
+  build-binaries:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
 
-  publish_npm:
-    name: Publish npm
-    runs-on: ubuntu-latest
-    needs: [release-please]
-    if: needs.release-please.outputs.release_created
     steps:
-      - name: Checking out sources
-        uses: actions/checkout@v4
-      - name: Set up Node
-        uses: actions/setup-node@v4.0.3
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
-          node-version: '16'
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+          node-version: '18'
+          
       - name: Install dependencies
         run: npm install
-      - name: Publish to npm
-        run: npm publish
+        
+      - name: Build parser
+        run: npm run build
+        
+      - name: Build prebuilt binaries
+        run: npm run prebuildify
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilds-${{ matrix.target }}
+          path: prebuilds/
+
+  publish:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: prebuilds
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Publish to NPM
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
